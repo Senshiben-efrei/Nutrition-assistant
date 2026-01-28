@@ -28,6 +28,10 @@ export interface UserGoals {
   fat: number;
   isTrainingDay: boolean;
   steps: number;
+  water: number; // ml
+  fiber: number; // g
+  salt: number; // mg
+  potassium: number; // mg
 }
 
 export interface InventoryItem {

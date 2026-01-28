@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Home, User, Utensils, Box, Brain, ChefHat, Dumbbell, Activity, Calendar, LayoutDashboard, Loader2 } from 'lucide-react';
+import { Home, User, Utensils, Box, Brain, ChefHat, Dumbbell, Activity, Calendar, LayoutDashboard, Loader2, Save } from 'lucide-react';
 import { FoodEntry, UserGoals, InventoryItem, AppView } from './types';
 import { Dashboard } from './components/Dashboard';
 import { Logger } from './components/Logger';
@@ -13,7 +13,11 @@ const INITIAL_GOALS: UserGoals = {
   carbs: 200,
   fat: 70,
   isTrainingDay: false,
-  steps: 8000
+  steps: 8000,
+  water: 3000,
+  fiber: 30,
+  salt: 2300,
+  potassium: 3500
 };
 
 const INITIAL_INVENTORY: InventoryItem[] = [
@@ -28,6 +32,13 @@ function App() {
   const [entries, setEntries] = useState<FoodEntry[]>([]);
   const [goals, setGoals] = useState<UserGoals>(INITIAL_GOALS);
   const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
+  const [waterIntake, setWaterIntake] = useState(0); // ml
+  
+  // Edit State
+  const [editingEntry, setEditingEntry] = useState<FoodEntry | undefined>(undefined);
+  const [showLogger, setShowLogger] = useState(false);
+
+  // AI State
   const [coachMessage, setCoachMessage] = useState<string | null>(null);
   const [generatedRecipe, setGeneratedRecipe] = useState<any>(null);
   const [chefCraving, setChefCraving] = useState('');
@@ -49,13 +60,32 @@ function App() {
   }, [goals]);
 
   // -- Handlers --
-  const handleAddEntry = (entry: FoodEntry) => {
-    setEntries(prev => [...prev, entry]);
+  const handleSaveEntry = (entry: FoodEntry) => {
+    setEntries(prev => {
+        const exists = prev.some(e => e.id === entry.id);
+        if (exists) {
+            return prev.map(e => e.id === entry.id ? entry : e);
+        } else {
+            return [...prev, entry];
+        }
+    });
+    setEditingEntry(undefined);
+    setShowLogger(false);
     setView('dashboard');
+  };
+
+  const handleEditEntry = (entry: FoodEntry) => {
+      setEditingEntry(entry);
+      setShowLogger(true);
   };
 
   const handleDeleteEntry = (id: string) => {
     setEntries(prev => prev.filter(e => e.id !== id));
+  };
+
+  const handleOpenLogger = () => {
+      setEditingEntry(undefined);
+      setShowLogger(true);
   };
 
   const handleConsultCoach = async () => {
@@ -75,6 +105,14 @@ function App() {
         console.error(e);
     }
     setLoadingChef(false);
+  };
+
+  // Helper for Profile Inputs
+  const handleGoalChange = (field: keyof UserGoals, value: string | number) => {
+      setGoals(prev => ({
+          ...prev,
+          [field]: typeof prev[field] === 'number' ? Number(value) : value
+      }));
   };
 
   // -- Components --
@@ -111,7 +149,7 @@ function App() {
 
        <div className="mt-auto">
           <button 
-             onClick={() => setView('logger')}
+             onClick={handleOpenLogger}
              className="w-full py-3 bg-accent-500 text-slate-950 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-accent-400 transition"
           >
              <Utensils size={18} /> Log Food
@@ -133,7 +171,7 @@ function App() {
         {/* FAB for Logger */}
         <div className="relative -top-6">
            <button 
-             onClick={() => setView('logger')}
+             onClick={handleOpenLogger}
              className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-900 shadow-lg shadow-white/10 hover:scale-105 transition-transform"
            >
              <div className="w-12 h-12 bg-slate-950 rounded-full flex items-center justify-center text-white">
@@ -156,9 +194,21 @@ function App() {
   const renderView = () => {
     switch(view) {
       case 'dashboard':
-        return <Dashboard entries={entries} goals={adjustedGoals} onNavigate={setView} onDelete={handleDeleteEntry} onGeneratePlan={handleAutoGeneratePlan} />;
+        return (
+            <Dashboard 
+                entries={entries} 
+                goals={adjustedGoals} 
+                waterIntake={waterIntake}
+                onAddWater={(amount) => setWaterIntake(prev => prev + amount)}
+                onNavigate={(v) => { if(v==='logger') handleOpenLogger(); else setView(v); }} 
+                onDelete={handleDeleteEntry}
+                onEdit={handleEditEntry} 
+                onGeneratePlan={handleAutoGeneratePlan} 
+            />
+        );
       case 'logger':
-        return <Logger onAddEntry={handleAddEntry} onCancel={() => setView('dashboard')} />;
+        // Not used as view anymore, strictly modal overlay
+        return null; 
       case 'coach':
         return (
             <div className="space-y-6 pt-4 max-w-4xl">
@@ -271,7 +321,7 @@ function App() {
                           {(['Cut', 'Recomposition', 'Bulk'] as const).map(t => (
                               <button 
                                 key={t}
-                                onClick={() => setGoals({...goals, type: t})}
+                                onClick={() => handleGoalChange('type', t)}
                                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${goals.type === t ? 'bg-primary-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
                               >
                                   {t}
@@ -298,35 +348,32 @@ function App() {
                                   <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${goals.isTrainingDay ? 'left-7' : 'left-1'}`} />
                               </button>
                           </div>
-
-                          <div className="flex items-center justify-between p-4 bg-slate-900 rounded-xl border border-slate-800">
-                              <div className="flex items-center gap-3">
-                                  <div className="p-2 rounded-full bg-blue-500/20 text-blue-500">
-                                      <Activity size={20} />
-                                  </div>
-                                  <div>
-                                      <p className="font-medium text-slate-200">Daily Steps</p>
-                                      <p className="text-xs text-slate-500">Current: {goals.steps.toLocaleString()}</p>
-                                  </div>
-                              </div>
-                              <input 
-                                type="number" 
-                                className="bg-slate-950 border border-slate-700 rounded-lg w-20 px-2 py-1 text-right text-white"
-                                value={goals.steps}
-                                onChange={(e) => setGoals({...goals, steps: parseInt(e.target.value) || 0})}
-                              />
-                          </div>
                       </div>
                     </div>
 
-                    {/* Summary */}
-                    <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700 h-fit">
-                        <h3 className="text-slate-400 text-sm uppercase font-bold mb-4 tracking-wider">Active Daily Targets</h3>
+                    {/* Editable Summary */}
+                    <div className="p-6 bg-slate-900/80 rounded-2xl border border-slate-800 h-fit space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                             <h3 className="text-slate-300 text-sm uppercase font-bold tracking-wider">Base Targets</h3>
+                             <Save size={16} className="text-slate-500" />
+                        </div>
+                        
                         <div className="grid grid-cols-2 gap-4">
-                            <TargetCard label="Calories" val={`${adjustedGoals.calories}`} unit="kcal" />
-                            <TargetCard label="Protein" val={`${adjustedGoals.protein}`} unit="g" />
-                            <TargetCard label="Carbs" val={`${adjustedGoals.carbs}`} unit="g" />
-                            <TargetCard label="Fat" val={`${adjustedGoals.fat}`} unit="g" />
+                            <InputCard label="Calories" val={goals.calories} unit="kcal" onChange={(v) => handleGoalChange('calories', v)} />
+                            <InputCard label="Steps" val={goals.steps} unit="steps" onChange={(v) => handleGoalChange('steps', v)} />
+                            <InputCard label="Protein" val={goals.protein} unit="g" onChange={(v) => handleGoalChange('protein', v)} />
+                            <InputCard label="Carbs" val={goals.carbs} unit="g" onChange={(v) => handleGoalChange('carbs', v)} />
+                            <InputCard label="Fat" val={goals.fat} unit="g" onChange={(v) => handleGoalChange('fat', v)} />
+                            <InputCard label="Water" val={goals.water} unit="ml" onChange={(v) => handleGoalChange('water', v)} />
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-800 mt-4">
+                             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4">Micronutrients</h3>
+                             <div className="grid grid-cols-3 gap-3">
+                                <InputCard label="Fiber" val={goals.fiber} unit="g" onChange={(v) => handleGoalChange('fiber', v)} />
+                                <InputCard label="Salt" val={goals.salt} unit="mg" onChange={(v) => handleGoalChange('salt', v)} />
+                                <InputCard label="Potassium" val={goals.potassium} unit="mg" onChange={(v) => handleGoalChange('potassium', v)} />
+                             </div>
                         </div>
                     </div>
                   </div>
@@ -396,15 +443,32 @@ function App() {
         </div>
 
         <BottomNav />
+        
+        {/* Modal Logger */}
+        {showLogger && (
+            <Logger 
+                initialEntry={editingEntry}
+                onSave={handleSaveEntry} 
+                onCancel={() => { setShowLogger(false); setEditingEntry(undefined); }} 
+            />
+        )}
     </div>
   );
 }
 
 // Small Helper Components
-const TargetCard = ({label, val, unit}: {label: string, val: string, unit: string}) => (
-    <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
+const InputCard = ({label, val, unit, onChange}: {label: string, val: number, unit: string, onChange: (v: string) => void}) => (
+    <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 focus-within:ring-1 focus-within:ring-primary-500 transition">
         <p className="text-xs text-slate-500 mb-1">{label}</p>
-        <p className="text-xl font-bold text-slate-200">{val}<span className="text-sm font-normal text-slate-500 ml-1">{unit}</span></p>
+        <div className="flex items-baseline gap-1">
+             <input 
+                type="number" 
+                value={val} 
+                onChange={(e) => onChange(e.target.value)}
+                className="bg-transparent text-xl font-bold text-slate-200 w-full focus:outline-none"
+             />
+             <span className="text-xs font-normal text-slate-500">{unit}</span>
+        </div>
     </div>
 );
 
