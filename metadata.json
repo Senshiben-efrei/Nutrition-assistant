@@ -1,0 +1,7 @@
+{
+  "name": "NutriMind AI",
+  "description": "A multimodal intelligent nutrition logger powered by Gemini, featuring AI food analysis, smart coaching, and dynamic goal tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
