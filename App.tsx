@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Home, User, Utensils, Box, Brain, ChefHat, Dumbbell, Activity, Calendar, LayoutDashboard, Loader2, Save } from 'lucide-react';
-import { FoodEntry, UserGoals, InventoryItem, AppView } from './types';
+import { FoodEntry, UserGoals, InventoryItem, AppView, DayLog } from './types';
 import { Dashboard } from './components/Dashboard';
 import { Logger } from './components/Logger';
+import { WeeklyStats } from './components/WeeklyStats';
 import { getCoachAdvice, generateMealCompletion } from './services/geminiService';
 
 // -- Mock Initial Data --
@@ -58,6 +59,71 @@ function App() {
     }
     return g;
   }, [goals]);
+
+  // -- History Generator (Current Week Mon-Sun) --
+  const weeklyHistory = useMemo(() => {
+    const history: DayLog[] = [];
+    const today = new Date();
+    // Get current date's day of week (0 = Sun, 1 = Mon, ... 6 = Sat)
+    const currentDay = today.getDay(); 
+    // Calculate distance to Monday (if Sun(0) -> 6, if Mon(1) -> 0)
+    const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - distanceToMonday);
+    monday.setHours(0,0,0,0);
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const dateStr = d.toISOString().split('T')[0];
+        const isFuture = d > today;
+        const isToday = dateStr === today.toISOString().split('T')[0];
+
+        if (isFuture) {
+             history.push({
+                date: dateStr,
+                dayName: dayNames[i],
+                entries: []
+            });
+        } else if (isToday) {
+             history.push({
+                date: dateStr,
+                dayName: dayNames[i],
+                entries: entries
+            });
+        } else {
+             // Past days mock data
+            const variance = () => (Math.random() * 0.4) - 0.2; // +/- 20%
+            const dailyCals = Math.round(goals.calories * (1 + variance()));
+            
+            // Distribute calories roughly to macros
+            const p = Math.round((dailyCals * 0.3) / 4);
+            const c = Math.round((dailyCals * 0.4) / 4);
+            const f = Math.round((dailyCals * 0.3) / 9);
+
+            history.push({
+                date: dateStr,
+                dayName: dayNames[i],
+                entries: [{ 
+                    id: `mock-${i}`, 
+                    name: 'Mock Entry', 
+                    mealType: 'Snack', 
+                    timestamp: d.getTime(), 
+                    tags: [], 
+                    inflammationFlags: [], 
+                    calories: dailyCals, 
+                    protein: p, 
+                    carbs: c, 
+                    fat: f, fiber: 20, salt: 2000, potassium: 3000 
+                }]
+            });
+        }
+    }
+    return history;
+  }, [entries, goals]);
 
   // -- Handlers --
   const handleSaveEntry = (entry: FoodEntry) => {
@@ -142,6 +208,7 @@ function App() {
 
        <div className="flex flex-col gap-2">
           <NavItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
+          <NavItem id="weekly" icon={Calendar} label="Weekly View" />
           <NavItem id="coach" icon={Brain} label="AI Coach" />
           <NavItem id="inventory" icon={Box} label="Inventory" />
           <NavItem id="profile" icon={User} label="My Targets" />
@@ -164,8 +231,8 @@ function App() {
         <button onClick={() => setView('dashboard')} className={`p-3 rounded-full transition ${view === 'dashboard' ? 'text-accent-500 bg-slate-800' : 'text-slate-500'}`}>
           <Home size={24} />
         </button>
-        <button onClick={() => setView('coach')} className={`p-3 rounded-full transition ${view === 'coach' ? 'text-accent-500 bg-slate-800' : 'text-slate-500'}`}>
-          <Brain size={24} />
+        <button onClick={() => setView('weekly')} className={`p-3 rounded-full transition ${view === 'weekly' ? 'text-accent-500 bg-slate-800' : 'text-slate-500'}`}>
+          <Calendar size={24} />
         </button>
         
         {/* FAB for Logger */}
@@ -180,8 +247,8 @@ function App() {
            </button>
         </div>
 
-        <button onClick={() => setView('inventory')} className={`p-3 rounded-full transition ${view === 'inventory' ? 'text-accent-500 bg-slate-800' : 'text-slate-500'}`}>
-          <Box size={24} />
+        <button onClick={() => setView('coach')} className={`p-3 rounded-full transition ${view === 'coach' ? 'text-accent-500 bg-slate-800' : 'text-slate-500'}`}>
+          <Brain size={24} />
         </button>
         <button onClick={() => setView('profile')} className={`p-3 rounded-full transition ${view === 'profile' ? 'text-accent-500 bg-slate-800' : 'text-slate-500'}`}>
           <User size={24} />
@@ -206,6 +273,8 @@ function App() {
                 onGeneratePlan={handleAutoGeneratePlan} 
             />
         );
+      case 'weekly':
+        return <WeeklyStats history={weeklyHistory} goals={adjustedGoals} />;
       case 'logger':
         // Not used as view anymore, strictly modal overlay
         return null; 
@@ -393,7 +462,7 @@ function App() {
                   <div className="flex justify-between items-center mb-4">
                       <h1 className="text-2xl font-bold tracking-tight text-white md:hidden">Today</h1>
                       <h1 className="text-3xl font-bold tracking-tight text-white hidden md:block">
-                        {view === 'dashboard' ? 'Overview' : view.charAt(0).toUpperCase() + view.slice(1)}
+                        {view === 'dashboard' ? 'Overview' : view === 'weekly' ? 'Weekly Review' : view.charAt(0).toUpperCase() + view.slice(1)}
                       </h1>
                       
                       {/* Desktop Date Selector */}

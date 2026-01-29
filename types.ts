@@ -17,6 +17,7 @@ export interface FoodEntry extends Nutrients {
   timestamp: number; // ms
   tags: string[]; // e.g., "Pre-Workout", "Cheat Meal"
   inflammationFlags: string[]; // e.g., "High Sugar"
+  insight?: string; // AI generated feedback
   images?: string[]; // Array of Base64 data URIs
 }
 
@@ -42,7 +43,8 @@ export interface InventoryItem {
 
 export interface DayLog {
   date: string; // ISO date string YYYY-MM-DD
+  dayName: string; // Mon, Tue, etc.
   entries: FoodEntry[];
 }
 
-export type AppView = 'dashboard' | 'logger' | 'coach' | 'inventory' | 'profile';
+export type AppView = 'dashboard' | 'logger' | 'coach' | 'inventory' | 'profile' | 'weekly';

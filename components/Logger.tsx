@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Image as ImageIcon, Loader2, Sparkles, X, Plus, Clock, ChevronLeft, Save } from 'lucide-react';
+import { Camera, Image as ImageIcon, Loader2, Sparkles, X, Plus, Clock, ChevronLeft, Save, Lightbulb } from 'lucide-react';
 import { analyzeMultimodal } from '../services/geminiService';
 import { FoodEntry, MealType } from '../types';
 
@@ -45,6 +45,13 @@ export const Logger: React.FC<LoggerProps> = ({ initialEntry, onSave, onCancel }
   const [protein, setProtein] = useState(initialEntry?.protein || 0);
   const [carbs, setCarbs] = useState(initialEntry?.carbs || 0);
   const [fat, setFat] = useState(initialEntry?.fat || 0);
+  // Micros
+  const [fiber, setFiber] = useState(initialEntry?.fiber || 0);
+  const [salt, setSalt] = useState(initialEntry?.salt || 0);
+  const [potassium, setPotassium] = useState(initialEntry?.potassium || 0);
+  
+  const [insight, setInsight] = useState(initialEntry?.insight || '');
+
   const [mealType, setMealType] = useState<MealType>(initialEntry?.mealType || 'Snack');
   const [timeStr, setTimeStr] = useState(initialEntry ? formatTime(initialEntry.timestamp) : formatTime(Date.now()));
   const [inflammationFlags, setInflammationFlags] = useState<string[]>(initialEntry?.inflammationFlags || []);
@@ -103,11 +110,13 @@ export const Logger: React.FC<LoggerProps> = ({ initialEntry, onSave, onCancel }
       setProtein(result.protein || 0);
       setCarbs(result.carbs || 0);
       setFat(result.fat || 0);
+      setFiber(result.fiber || 0);
+      setSalt(result.salt || 0);
+      setPotassium(result.potassium || 0);
+      setInsight(result.insight || '');
+      
       setInflammationFlags(result.inflammationFlags || []);
       
-      // If AI detects a meal type strongly, we might use it, but user selection in UI usually overrides.
-      // However, if user left it as default, maybe we respect AI? 
-      // For now, let's trust the current UI selection unless it's just 'Snack' and AI thinks otherwise.
       if (result.mealType && result.mealType !== 'Snack') {
           setMealType(result.mealType as MealType);
       }
@@ -129,9 +138,10 @@ export const Logger: React.FC<LoggerProps> = ({ initialEntry, onSave, onCancel }
       protein,
       carbs,
       fat,
-      fiber: initialEntry?.fiber || 0, // Preserve or default
-      salt: initialEntry?.salt || 0,
-      potassium: initialEntry?.potassium || 0,
+      fiber, 
+      salt,
+      potassium,
+      insight,
       mealType,
       timestamp: getTimestampFromTime(timeStr),
       tags,
@@ -240,6 +250,20 @@ export const Logger: React.FC<LoggerProps> = ({ initialEntry, onSave, onCancel }
 
   const renderReviewStep = () => (
     <div className="flex flex-col gap-6 h-full">
+        
+        {/* Insight Card */}
+        {insight && (
+            <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-purple-500/30 p-4 rounded-2xl flex items-start gap-3 shadow-lg">
+                <div className="p-2 bg-purple-500/20 rounded-lg text-purple-300">
+                    <Lightbulb size={18} />
+                </div>
+                <div>
+                    <h4 className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-1">AI Insight</h4>
+                    <p className="text-sm text-slate-200 leading-relaxed italic">"{insight}"</p>
+                </div>
+            </div>
+        )}
+
         {/* Header fields */}
         <div className="space-y-4">
              <div>
@@ -277,8 +301,8 @@ export const Logger: React.FC<LoggerProps> = ({ initialEntry, onSave, onCancel }
 
         {/* Macros */}
         <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
-            <label className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-4 block">Nutritional Values</label>
-            <div className="grid grid-cols-2 gap-4">
+            <label className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-4 block">Macronutrients</label>
+            <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                     <label className="text-xs text-slate-500 mb-1 block">Calories</label>
                     <div className="relative">
@@ -305,6 +329,31 @@ export const Logger: React.FC<LoggerProps> = ({ initialEntry, onSave, onCancel }
                     <div className="relative">
                         <input type="number" value={fat} onChange={e => setFat(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-bold" />
                         <span className="absolute right-3 top-2 text-xs text-slate-500">g</span>
+                    </div>
+                </div>
+            </div>
+
+            <label className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-4 block pt-4 border-t border-slate-800">Micronutrients</label>
+            <div className="grid grid-cols-3 gap-3">
+                <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Fiber</label>
+                    <div className="relative">
+                        <input type="number" value={fiber} onChange={e => setFiber(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-bold" />
+                        <span className="absolute right-3 top-2 text-xs text-slate-500">g</span>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Salt</label>
+                    <div className="relative">
+                        <input type="number" value={salt} onChange={e => setSalt(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-bold" />
+                        <span className="absolute right-3 top-2 text-xs text-slate-500">mg</span>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Potassium</label>
+                    <div className="relative">
+                        <input type="number" value={potassium} onChange={e => setPotassium(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-bold" />
+                        <span className="absolute right-3 top-2 text-xs text-slate-500">mg</span>
                     </div>
                 </div>
             </div>

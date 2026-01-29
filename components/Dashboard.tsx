@@ -100,6 +100,11 @@ const MealCard = ({
                      </span>
                    )}
                 </span>
+                {entry.insight && (
+                  <p className="text-[10px] text-purple-400 mt-1 italic opacity-80">
+                     "{entry.insight}"
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-slate-300 font-bold">{entry.calories}</span>

@@ -38,6 +38,7 @@ export const analyzeMultimodal = async (
     
     Estimate the nutritional content for the ENTIRE entry (combining text description and images if present).
     Identify potential inflammation flags (e.g., High Sugar, Processed Oils, Trans Fats).
+    Provide a specific "insight": A single, short sentence feedback about this meal (e.g., "Great protein source but check the sodium", "Perfect pre-workout fuel").
     
     Return a JSON object with the following keys:
     name (string, concise summary),
@@ -49,6 +50,7 @@ export const analyzeMultimodal = async (
     salt (number, milligrams),
     potassium (number, milligrams),
     inflammationFlags (array of strings),
+    insight (string),
     mealType (string: 'Breakfast', 'Lunch', 'Dinner', 'Snack').
   `;
 
@@ -72,9 +74,10 @@ export const analyzeMultimodal = async (
             salt: { type: Type.NUMBER },
             potassium: { type: Type.NUMBER },
             inflammationFlags: { type: Type.ARRAY, items: { type: Type.STRING } },
+            insight: { type: Type.STRING },
             mealType: { type: Type.STRING, enum: ["Breakfast", "Lunch", "Dinner", "Snack"] }
           },
-          required: ["name", "calories", "protein", "carbs", "fat", "mealType"]
+          required: ["name", "calories", "protein", "carbs", "fat", "mealType", "insight"]
         }
       }
     });
